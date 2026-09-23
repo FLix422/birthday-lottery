@@ -1288,7 +1288,7 @@
         <div class="gift-box">
           <p id="finalText">Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.</p>
         </div>
-        <p class="small-love">Alles Gute zum Geburtstag ♥</p>
+        <p class="small-love" id="finalLove">Alles Gute zum Geburtstag ♥</p>
         <button class="secondary-button" type="button" id="nextTokenButton">Zweiten Token einsetzen</button>
       </div>
     </section>
@@ -1338,6 +1338,7 @@
         revealText: "Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.",
         finalTitle: "Ein Fernglas<br>deiner Wahl.",
         finalText: "Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.",
+        finalLove: "Alles Gute zum Geburtstag ♥",
         tokenNote: "Nach dem Aufdecken ist dieser Token verbraucht."
       },
       {
@@ -1355,6 +1356,7 @@
         revealText: "Deine Jungs füllen deine Kite Ausrüstung. Status nun: 95% Komplett. Weisst du was noch gefehlt hat? Dein Geschenk wartet auf dich Zuhause.",
         finalTitle: "Mystery!",
         finalText: "Deine Jungs füllen deine Kite Ausrüstung. Status nun: 95% Komplett. Weisst du was noch gefehlt hat? Dein Geschenk wartet auf dich Zuhause.",
+        finalLove: "Glückwunsch, thats it! Danke ♥",
         tokenNote: "Nach dem Aufdecken ist auch dein zweiter Token verbraucht."
       }
     ];
@@ -1383,6 +1385,7 @@
     const finalIcon = document.querySelector("#finalIcon");
     const finalTitle = document.querySelector("#final-title");
     const finalText = document.querySelector("#finalText");
+    const finalLove = document.querySelector("#finalLove");
     const tokenNote = document.querySelector("#tokenNote");
 
     let currentRotation = 0;
@@ -1534,6 +1537,7 @@
       finalIcon.textContent = round.icon;
       finalTitle.innerHTML = round.finalTitle;
       finalText.textContent = round.finalText;
+      finalLove.textContent = round.finalLove;
       tokenNote.textContent = round.tokenNote;
       nextTokenButton.textContent = roundIndex === 0 ? "Zweiten Token einsetzen" : "Nochmal ansehen";
       nextTokenButton.classList.toggle("primary-button", roundIndex === 0);
