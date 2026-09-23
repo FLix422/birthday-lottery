@@ -473,19 +473,6 @@
       overflow: hidden;
     }
 
-    .slot::before {
-      content: "";
-      position: absolute;
-      left: 12%;
-      right: 12%;
-      top: 50%;
-      height: 0.55rem;
-      border-radius: 999px;
-      background: #020205;
-      box-shadow: 0 0 2rem rgba(243, 207, 131, 0.28);
-      transform: translateY(-50%);
-    }
-
     .slot-token {
       position: absolute;
       left: 50%;
@@ -498,7 +485,50 @@
         radial-gradient(circle, #f3cf83 0 36%, #b77e2a 68%, #644012 100%);
       box-shadow: inset 0 0 0 0.42rem rgba(72, 44, 8, 0.24), 0 0 2rem rgba(243, 207, 131, 0.34);
       transform: translate(-50%, -185%) rotateY(0deg);
-      animation: slot-drop 2200ms var(--ease-game) forwards;
+      z-index: 2;
+    }
+
+    .activation.is-running .slot-token {
+      animation: slot-drop 1450ms var(--ease-game) forwards;
+    }
+
+    .activation-loader {
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: 50%;
+      height: 0.62rem;
+      overflow: hidden;
+      transform: translateY(-50%);
+      border: 1px solid rgba(243, 207, 131, 0.26);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.58);
+      box-shadow: inset 0 0.1rem 0.45rem rgba(0, 0, 0, 0.7), 0 0 1.4rem rgba(243, 207, 131, 0.12);
+    }
+
+    .activation-loader span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #8f5d1d, #f3cf83 44%, #fff1bd 58%, #d69b36 100%);
+      box-shadow: 0 0 1rem rgba(243, 207, 131, 0.82);
+    }
+
+    .activation-loader span::after {
+      content: "";
+      position: absolute;
+      inset: -0.6rem -1rem;
+      background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.96) 49%, transparent 60%);
+      transform: translateX(-150%);
+    }
+
+    .activation.is-running .activation-loader span {
+      animation: token-load 1500ms cubic-bezier(0.16, 0.82, 0.22, 1) 120ms forwards;
+    }
+
+    .activation.is-running .activation-loader span::after {
+      animation: loader-spark 620ms ease-in-out 260ms 2;
     }
 
     .activation-title {
@@ -978,6 +1008,26 @@
       }
     }
 
+    @keyframes token-load {
+      0% {
+        width: 0;
+      }
+
+      72% {
+        width: 88%;
+      }
+
+      100% {
+        width: 100%;
+      }
+    }
+
+    @keyframes loader-spark {
+      to {
+        transform: translateX(150%);
+      }
+    }
+
     @keyframes speed-pulse {
       to {
         transform: rotate(1turn);
@@ -1162,6 +1212,7 @@
       <div class="stack">
         <div class="slot" aria-hidden="true">
           <div class="slot-token"></div>
+          <div class="activation-loader" aria-label="Token wird aktiviert"><span></span></div>
         </div>
         <h2 class="activation-title" id="activation-title">Rien ne<br>va plus!</h2>
       </div>
@@ -1311,6 +1362,7 @@
     const app = document.querySelector("#app");
     const screens = [...document.querySelectorAll("[data-screen]")];
     const landing = document.querySelector(".landing");
+    const activation = document.querySelector(".activation");
     const wheelScreen = document.querySelector(".wheel-screen");
     const revealScreen = document.querySelector(".reveal-screen");
     const wheelSvg = document.querySelector("#wheelSvg");
@@ -1503,14 +1555,19 @@
       clearTimers();
       document.activeElement?.blur?.();
       landing.classList.remove("is-nope");
+      activation.classList.remove("is-running");
       const activeTokenScreen = roundIndex === 0 ? landing : document.querySelector(".token-screen");
       activeTokenScreen.classList.add("is-token-active");
       const activeButton = roundIndex === 0 ? useTokenButton : useSecondTokenButton;
       activeButton.disabled = true;
 
-      wait(900, () => showScreen("activation"));
+      wait(900, () => {
+        showScreen("activation");
+        activation.classList.add("is-running");
+      });
       wait(timing.tokenActivation, () => {
         activeTokenScreen.classList.remove("is-token-active");
+        activation.classList.remove("is-running");
         activeButton.disabled = false;
         showScreen("wheel");
       });
