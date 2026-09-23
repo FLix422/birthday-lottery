@@ -1,0 +1,1622 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Geburtstags-Lotterie</title>
+  <style>
+    :root {
+      --bg: #050408;
+      --panel: rgba(255, 255, 255, 0.065);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --ink: #fff8e8;
+      --muted: rgba(255, 248, 232, 0.66);
+      --soft: rgba(255, 248, 232, 0.42);
+      --gold: #f3cf83;
+      --gold-deep: #a9792e;
+      --silver: #d9e0ea;
+      --danger: #ff8c66;
+      --ease-out: cubic-bezier(0.18, 0.86, 0.2, 1);
+      --ease-game: cubic-bezier(0.12, 0.78, 0.12, 1);
+      --spin-duration: 6800ms;
+      --wheel-size: min(86vw, 45dvh, 22rem);
+      --safe-top: max(1rem, env(safe-area-inset-top));
+      --safe-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button {
+      color: inherit;
+      font: inherit;
+    }
+
+    .app {
+      position: relative;
+      min-height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(243, 207, 131, 0.16), transparent 34%),
+        radial-gradient(circle at 84% 74%, rgba(145, 119, 255, 0.12), transparent 30%),
+        radial-gradient(circle at 16% 84%, rgba(70, 143, 181, 0.12), transparent 30%),
+        linear-gradient(180deg, #090811 0%, #040308 58%, #010104 100%);
+    }
+
+    .app::before,
+    .app::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .app::before {
+      opacity: 0.5;
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.92) 0 1px, transparent 1.4px),
+        radial-gradient(circle, rgba(243, 207, 131, 0.65) 0 1px, transparent 1.4px);
+      background-position: 12% 16%, 70% 22%;
+      background-size: 11rem 9rem, 14rem 12rem;
+      animation: drift-stars 18s linear infinite;
+    }
+
+    .app::after {
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 46%, rgba(0, 0, 0, 0.22) 78%, rgba(0, 0, 0, 0.72) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 36%, rgba(0, 0, 0, 0.4));
+    }
+
+    .floaters {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .floater {
+      position: absolute;
+      top: -12dvh;
+      left: var(--x);
+      width: clamp(0.7rem, 3.3vw, 1.2rem);
+      aspect-ratio: 1;
+      border: 1px solid rgba(255, 238, 178, 0.68);
+      border-radius: 50%;
+      opacity: 0;
+      background:
+        radial-gradient(circle at 32% 27%, rgba(255, 255, 255, 0.95) 0 8%, transparent 10%),
+        radial-gradient(circle at 50% 50%, #ffe79c 0 28%, #d29a36 31% 67%, #6f4213 70% 100%);
+      box-shadow: 0 0 1.35rem rgba(243, 207, 131, 0.36);
+      transform: translate3d(0, -15dvh, 0) rotate(0deg) scale(var(--scale));
+      will-change: transform, opacity;
+      animation: coin-fall var(--duration) linear infinite;
+      animation-delay: var(--delay);
+    }
+
+    .floater:nth-child(3n) {
+      width: clamp(0.55rem, 2.5vw, 0.9rem);
+      border-radius: 0.2rem;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.86), transparent 34%),
+        linear-gradient(145deg, #6950a2, #211b36 50%, #bd8d42);
+      box-shadow: 0 0 1.5rem rgba(135, 103, 255, 0.32);
+    }
+
+    .floater:nth-child(4n) {
+      width: clamp(0.45rem, 2vw, 0.72rem);
+      border: 0;
+      background: rgba(255, 246, 205, 0.92);
+      box-shadow: 0 0 1.8rem 0.45rem rgba(243, 207, 131, 0.34);
+    }
+
+    .floater.symbol {
+      display: grid;
+      place-items: center;
+      width: auto;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      background: transparent !important;
+      color: rgba(255, 218, 110, 0.78);
+      font-size: clamp(1.15rem, 6vw, 2rem);
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 1.25rem rgba(243, 207, 131, 0.72);
+      box-shadow: none !important;
+    }
+
+    .floater.gold-spark {
+      width: clamp(0.65rem, 3.3vw, 1.05rem);
+      aspect-ratio: 1;
+      border: 0;
+      border-radius: 0;
+      background: #f4cf78 !important;
+      clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+      box-shadow: 0 0 1.35rem rgba(243, 207, 131, 0.46) !important;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: grid;
+      min-height: 100dvh;
+      padding: var(--safe-top) clamp(1rem, 4vw, 2rem) var(--safe-bottom);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.9rem) scale(0.985);
+      filter: blur(8px);
+      transition:
+        opacity 520ms var(--ease-out),
+        transform 680ms var(--ease-out),
+        filter 680ms var(--ease-out);
+    }
+
+    .screen.is-active {
+      z-index: 2;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    .stack {
+      width: min(100%, 28rem);
+      margin: auto;
+      display: grid;
+      justify-items: center;
+      gap: clamp(0.8rem, 2.7dvh, 1.35rem);
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: rgba(243, 207, 131, 0.9);
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2.4rem, 12vw, 6.1rem);
+      font-weight: 860;
+      line-height: 0.82;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      text-wrap: balance;
+      text-shadow: 0 1.4rem 4rem rgba(0, 0, 0, 0.72);
+    }
+
+    .subtitle,
+    .copy {
+      margin: 0;
+      max-width: 24rem;
+      color: var(--muted);
+      font-size: clamp(0.96rem, 4.2vw, 1.08rem);
+      line-height: 1.45;
+      text-wrap: balance;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .ghost-button {
+      min-width: min(100%, 13.4rem);
+      min-height: 3.25rem;
+      border: 1px solid rgba(255, 248, 232, 0.18);
+      border-radius: 999px;
+      padding: 0.88rem 1.18rem;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      transition:
+        transform 180ms ease,
+        opacity 180ms ease,
+        border-color 180ms ease,
+        background 180ms ease;
+    }
+
+    .primary-button {
+      color: #160f05;
+      background:
+        linear-gradient(180deg, #ffeab1, #d8a849 55%, #916426),
+        radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.75), transparent 28%);
+      border-color: rgba(255, 236, 172, 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        0 0.9rem 2.6rem rgba(200, 143, 50, 0.25),
+        0 0 0 1px rgba(243, 207, 131, 0.16);
+      font-weight: 860;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .secondary-button,
+    .ghost-button {
+      color: rgba(255, 248, 232, 0.86);
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(18px);
+      font-weight: 700;
+    }
+
+    .ghost-button {
+      min-width: auto;
+      min-height: 2.7rem;
+      padding-inline: 1rem;
+      color: rgba(255, 248, 232, 0.62);
+      background: transparent;
+      border-color: transparent;
+      font-size: 0.92rem;
+    }
+
+    .primary-button:active,
+    .secondary-button:active,
+    .ghost-button:active {
+      transform: translateY(1px) scale(0.985);
+    }
+
+    .primary-button:disabled,
+    .secondary-button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
+    .primary-button:focus-visible,
+    .secondary-button:focus-visible,
+    .ghost-button:focus-visible {
+      outline: 2px solid rgba(243, 207, 131, 0.9);
+      outline-offset: 4px;
+    }
+
+    /* LANDING SCREEN */
+    .landing .stack {
+      padding-bottom: min(4dvh, 2rem);
+    }
+
+    .token {
+      position: relative;
+      width: clamp(7.1rem, 34vw, 10.2rem);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #281802;
+      background:
+        radial-gradient(circle at 35% 26%, #fff5c9 0 12%, transparent 25%),
+        radial-gradient(circle at 50% 58%, #f2cf76 0 32%, #b9852e 62%, #6f4718 100%);
+      box-shadow:
+        inset 0 0 0 0.55rem rgba(70, 42, 6, 0.25),
+        inset 0 0 0 0.75rem rgba(255, 248, 232, 0.18),
+        0 1.3rem 4rem rgba(0, 0, 0, 0.48),
+        0 0 3rem rgba(243, 207, 131, 0.2);
+      transform-style: preserve-3d;
+      animation: token-float 4200ms ease-in-out infinite;
+    }
+
+    .token-bank {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(0.75rem, 4vw, 1.4rem);
+    }
+
+    .token-bank .token {
+      width: clamp(5.8rem, 28vw, 8.6rem);
+    }
+
+    .token.is-reserve {
+      filter: saturate(0.72) brightness(0.86);
+      opacity: 0.76;
+      animation-delay: -1200ms;
+    }
+
+    .token.is-spent {
+      color: rgba(255, 248, 232, 0.78);
+      background:
+        radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.42), transparent 22%),
+        radial-gradient(circle, #4c5261 0 46%, #242937 72%, #131722 100%);
+      box-shadow: inset 0 0 0 0.55rem rgba(0, 0, 0, 0.3), 0 1rem 2.5rem rgba(0, 0, 0, 0.34);
+      animation: none;
+    }
+
+    .token-button {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      touch-action: manipulation;
+    }
+
+    .token-button:focus-visible {
+      outline: 2px solid rgba(243, 207, 131, 0.92);
+      outline-offset: 5px;
+    }
+
+    .token-button::after {
+      opacity: 1;
+      animation: shine 3200ms ease-in-out infinite;
+    }
+
+    .token::before,
+    .token::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .token::before {
+      inset: 9%;
+      border: 1px dashed rgba(45, 27, 5, 0.46);
+    }
+
+    .token::after {
+      inset: 0;
+      background: linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.72) 38%, transparent 53%);
+      mix-blend-mode: screen;
+      opacity: 0;
+      transform: translateX(-42%);
+    }
+
+    .token-mark {
+      display: grid;
+      justify-items: center;
+      gap: 0.1rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .token-mark strong {
+      font-size: clamp(2.1rem, 10vw, 3.2rem);
+      line-height: 0.9;
+    }
+
+    .token-mark span {
+      font-size: 0.68rem;
+    }
+
+    .landing-actions {
+      display: grid;
+      justify-items: center;
+      gap: 0.35rem;
+    }
+
+    .landing.is-token-active .token.is-active {
+      animation: token-insert 1800ms var(--ease-game) forwards;
+    }
+
+    .landing.is-token-active .token.is-active::after {
+      animation: shine 950ms ease-out 160ms both;
+    }
+
+    .token-screen .stack {
+      width: min(100%, 27rem);
+    }
+
+    .token-screen .token-bank {
+      margin-block: 0.4rem;
+    }
+
+    .token-screen .token {
+      width: clamp(6.8rem, 32vw, 9.5rem);
+    }
+
+    .token-screen .token-button {
+      transform: translateY(-0.28rem);
+    }
+
+    .token-screen .token-button:active {
+      transform: translateY(0.05rem) scale(0.96);
+    }
+
+    .no-panel {
+      display: none;
+      width: min(100%, 22rem);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 1.15rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(18px);
+    }
+
+    .landing.is-nope .no-panel {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .landing.is-nope .landing-actions {
+      display: none;
+    }
+
+    /* TOKEN */
+    .activation .stack {
+      gap: 1.1rem;
+    }
+
+    .slot {
+      position: relative;
+      width: min(86vw, 23rem);
+      height: 7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(243, 207, 131, 0.24);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+        radial-gradient(ellipse at 50% 50%, rgba(243, 207, 131, 0.22), transparent 62%),
+        rgba(255, 255, 255, 0.055);
+      box-shadow: inset 0 0.2rem 1.2rem rgba(0, 0, 0, 0.62), 0 1rem 4rem rgba(0, 0, 0, 0.32);
+      overflow: hidden;
+    }
+
+    .slot::before {
+      content: "";
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: 50%;
+      height: 0.55rem;
+      border-radius: 999px;
+      background: #020205;
+      box-shadow: 0 0 2rem rgba(243, 207, 131, 0.28);
+      transform: translateY(-50%);
+    }
+
+    .slot-token {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4.5rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 28%, #fff7d1, transparent 25%),
+        radial-gradient(circle, #f3cf83 0 36%, #b77e2a 68%, #644012 100%);
+      box-shadow: inset 0 0 0 0.42rem rgba(72, 44, 8, 0.24), 0 0 2rem rgba(243, 207, 131, 0.34);
+      transform: translate(-50%, -185%) rotateY(0deg);
+      animation: slot-drop 2200ms var(--ease-game) forwards;
+    }
+
+    .activation-title {
+      margin: 0;
+      font-size: clamp(2.15rem, 10vw, 4.5rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      text-wrap: balance;
+    }
+
+    /* WHEEL */
+    .wheel-screen {
+      align-content: center;
+      padding-block: var(--safe-top) var(--safe-bottom);
+    }
+
+    .wheel-layout {
+      width: min(100%, 30rem);
+      height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+      min-height: 0;
+      margin: auto;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      align-items: center;
+      justify-items: center;
+      gap: clamp(0.55rem, 1.7dvh, 0.9rem);
+    }
+
+    .wheel-header {
+      display: grid;
+      justify-items: center;
+      gap: 0.3rem;
+      text-align: center;
+    }
+
+    .wheel-title {
+      margin: 0;
+      color: rgba(255, 248, 232, 0.94);
+      font-size: clamp(1.15rem, 5vw, 1.7rem);
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .wheel-status {
+      min-height: 1.45rem;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.86rem, 3.5vw, 0.98rem);
+      line-height: 1.28;
+      text-wrap: balance;
+      transition: color 260ms ease, transform 260ms ease;
+    }
+
+    .wheel-status.is-hot {
+      color: var(--gold);
+      transform: scale(1.03);
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: var(--wheel-size);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      margin-block: 0.1rem;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -0.5rem;
+      left: 50%;
+      z-index: 5;
+      width: clamp(2rem, 9vw, 2.8rem);
+      height: clamp(2.6rem, 11vw, 3.5rem);
+      transform: translateX(-50%);
+      filter: drop-shadow(0 0.55rem 1rem rgba(0, 0, 0, 0.55));
+    }
+
+    .pointer svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .wheel-frame {
+      position: absolute;
+      inset: -3%;
+      border-radius: 50%;
+      background:
+        conic-gradient(from 0deg, #fce7aa, #9d6a1e, #fff3bf, #7c5319, #fce7aa),
+        radial-gradient(circle, transparent 66%, rgba(0, 0, 0, 0.64) 69%);
+      box-shadow:
+        inset 0 0 0 0.45rem rgba(255, 255, 255, 0.07),
+        0 1.2rem 3.5rem rgba(0, 0, 0, 0.5),
+        0 0 4rem rgba(243, 207, 131, 0.13);
+    }
+
+    .wheel-rotor {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      will-change: transform, filter;
+      transform: rotate(0deg);
+      transition: transform var(--spin-duration) cubic-bezier(0.08, 0.78, 0.12, 1);
+    }
+
+    .wheel-screen.is-spinning .wheel-rotor {
+      filter: drop-shadow(0 0 1rem rgba(243, 207, 131, 0.2));
+    }
+
+    .wheel-svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: visible;
+    }
+
+    .segment {
+      stroke: rgba(255, 248, 232, 0.28);
+      stroke-width: 0.34;
+      transition: filter 380ms ease, opacity 380ms ease;
+    }
+
+    .segment.is-winner {
+      filter: url("#winnerGlow");
+      animation: winning-segment 1200ms ease-in-out infinite;
+    }
+
+    .wheel-label {
+      fill: rgba(255, 248, 232, 0.95);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-weight: 850;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      paint-order: stroke;
+      stroke: rgba(8, 6, 11, 0.72);
+      stroke-width: 0.42;
+    }
+
+    .wheel-label .icon {
+      font-size: 7.2px;
+      stroke-width: 0;
+    }
+
+    .wheel-label .word {
+      font-size: 4.15px;
+      letter-spacing: 0;
+    }
+
+    .hub {
+      position: absolute;
+      inset: 50%;
+      z-index: 3;
+      width: 22%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background:
+        radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.9), transparent 18%),
+        radial-gradient(circle, #ffe7a2 0 24%, #bd842e 58%, #4e310e 100%);
+      box-shadow:
+        inset 0 0 0 0.35rem rgba(255, 248, 232, 0.14),
+        0 0 2rem rgba(0, 0, 0, 0.5);
+    }
+
+    .speed-lines {
+      position: absolute;
+      inset: -6%;
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+      background: repeating-conic-gradient(from 0deg, transparent 0 8deg, rgba(255, 255, 255, 0.11) 8deg 10deg, transparent 10deg 20deg);
+      mix-blend-mode: screen;
+      transition: opacity 260ms ease;
+    }
+
+    .wheel-screen.is-spinning .speed-lines {
+      opacity: 0.58;
+      animation: speed-pulse 720ms linear infinite;
+    }
+
+    .wheel-actions {
+      width: min(100%, 22rem);
+      display: grid;
+      justify-items: center;
+      gap: 0.5rem;
+    }
+
+    .one-token-note {
+      min-height: 1.1rem;
+      margin: 0;
+      color: rgba(255, 248, 232, 0.46);
+      font-size: 0.75rem;
+      line-height: 1.25;
+    }
+
+    /* REVEAL ANIMATION */
+    .reveal-screen {
+      perspective: 900px;
+    }
+
+    .mystery-card {
+      position: relative;
+      width: clamp(9.5rem, 52vw, 13rem);
+      aspect-ratio: 0.76;
+      transform-style: preserve-3d;
+      transform: scale(0.94);
+      transition: transform 900ms var(--ease-game);
+      filter: drop-shadow(0 1.4rem 3rem rgba(0, 0, 0, 0.5));
+    }
+
+    .reveal-screen.is-flipped .mystery-card {
+      transform: scale(1);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(243, 207, 131, 0.34);
+      border-radius: 1.25rem;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.035)),
+        radial-gradient(circle at 50% 18%, rgba(243, 207, 131, 0.26), transparent 44%),
+        rgba(9, 8, 17, 0.92);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transition: opacity 520ms var(--ease-out), transform 900ms var(--ease-game);
+      overflow: hidden;
+    }
+
+    .card-face::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 48%, transparent 58%);
+      transform: translateX(-70%);
+      animation: card-sweep 2200ms ease-in-out infinite;
+    }
+
+    .card-front {
+      color: var(--gold);
+      font-size: clamp(4.2rem, 24vw, 6.5rem);
+      font-weight: 950;
+      opacity: 1;
+      transform: rotateY(0deg);
+    }
+
+    .card-back {
+      opacity: 0;
+      transform: rotateY(-180deg);
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .reveal-screen.is-flipped .card-front {
+      opacity: 0;
+      transform: rotateY(180deg);
+    }
+
+    .reveal-screen.is-flipped .card-back {
+      opacity: 1;
+      transform: rotateY(0deg);
+    }
+
+    .card-back .optic {
+      display: block;
+      font-size: clamp(3rem, 16vw, 4.5rem);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-back strong {
+      display: block;
+      font-size: clamp(1rem, 5vw, 1.35rem);
+      line-height: 1.05;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .reveal-copy {
+      min-height: 7.3rem;
+      display: grid;
+      justify-items: center;
+      gap: 0.45rem;
+    }
+
+    .reveal-copy h2 {
+      margin: 0;
+      font-size: clamp(2.1rem, 11vw, 4rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      text-wrap: balance;
+      opacity: 0;
+      transform: translateY(0.6rem);
+      transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out);
+    }
+
+    .reveal-copy p {
+      margin: 0;
+      max-width: 23rem;
+      color: var(--muted);
+      font-size: clamp(0.95rem, 4vw, 1.1rem);
+      line-height: 1.42;
+      opacity: 0;
+      transform: translateY(0.6rem);
+      transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out);
+    }
+
+    .reveal-screen.show-copy .reveal-copy h2,
+    .reveal-screen.show-copy .reveal-copy p {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-screen.show-copy .reveal-copy p {
+      transition-delay: 160ms;
+    }
+
+    /* FINAL SCREEN */
+    .final-screen .stack,
+    .used-screen .stack {
+      width: min(100%, 26rem);
+    }
+
+    .prize-symbol {
+      width: clamp(6.6rem, 32vw, 10rem);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-size: clamp(5.5rem, 27vw, 8.8rem);
+      line-height: 1;
+      filter: drop-shadow(0 1.3rem 2.4rem rgba(0, 0, 0, 0.5));
+    }
+
+    .final-title {
+      margin: 0;
+      font-size: clamp(2.15rem, 10.5vw, 4.5rem);
+      font-weight: 900;
+      line-height: 0.86;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      text-wrap: balance;
+    }
+
+    .gift-box {
+      width: min(100%, 23rem);
+      border: 1px solid rgba(243, 207, 131, 0.24);
+      border-radius: 1.25rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 1rem 3.4rem rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px);
+    }
+
+    .gift-box p {
+      margin: 0;
+      color: rgba(255, 248, 232, 0.86);
+      font-size: clamp(0.98rem, 4vw, 1.08rem);
+      line-height: 1.45;
+    }
+
+    .small-love {
+      margin: 0;
+      color: rgba(255, 248, 232, 0.72);
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .used-badge {
+      display: inline-grid;
+      place-items: center;
+      min-height: 2.5rem;
+      border: 1px solid rgba(255, 140, 102, 0.35);
+      border-radius: 999px;
+      padding: 0.55rem 0.9rem;
+      color: #ffd0c1;
+      background: rgba(255, 140, 102, 0.08);
+      font-size: 0.8rem;
+      font-weight: 850;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    @keyframes drift-stars {
+      to {
+        transform: translate3d(-1.4rem, 1rem, 0);
+      }
+    }
+
+    @keyframes coin-fall {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, -15dvh, 0) rotate(0deg) scale(var(--scale));
+      }
+
+      10% {
+        opacity: 0.74;
+      }
+
+      82% {
+        opacity: 0.48;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate3d(var(--drift), 115dvh, 0) rotate(540deg) scale(var(--scale));
+      }
+    }
+
+    @keyframes token-float {
+      0%,
+      100% {
+        transform: translateY(0) rotateZ(-2deg);
+      }
+
+      50% {
+        transform: translateY(-0.45rem) rotateZ(2deg);
+      }
+    }
+
+    @keyframes shine {
+      0% {
+        opacity: 0;
+        transform: translateX(-55%);
+      }
+
+      22% {
+        opacity: 0.82;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateX(54%);
+      }
+    }
+
+    @keyframes token-insert {
+      0% {
+        transform: translateY(0) rotateY(0deg) scale(1);
+      }
+
+      45% {
+        transform: translateY(-0.45rem) rotateY(540deg) scale(1.04);
+      }
+
+      100% {
+        transform: translateY(8.5rem) rotateY(900deg) scale(0.55);
+        opacity: 0;
+      }
+    }
+
+    @keyframes slot-drop {
+      0% {
+        transform: translate(-50%, -185%) rotateY(0deg);
+      }
+
+      62% {
+        transform: translate(-50%, -50%) rotateY(740deg);
+      }
+
+      100% {
+        transform: translate(-50%, 90%) rotateY(900deg);
+        opacity: 0;
+      }
+    }
+
+    @keyframes speed-pulse {
+      to {
+        transform: rotate(1turn);
+      }
+    }
+
+    @keyframes winning-segment {
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.74;
+      }
+    }
+
+    @keyframes card-sweep {
+      0%,
+      42% {
+        transform: translateX(-72%);
+      }
+
+      100% {
+        transform: translateX(72%);
+      }
+    }
+
+    @media (max-height: 700px) {
+      :root {
+        --wheel-size: min(82vw, 43dvh, 19rem);
+      }
+
+      .title {
+        font-size: clamp(2.7rem, 14vw, 4.8rem);
+      }
+
+      .token {
+        width: clamp(6rem, 28vw, 8rem);
+      }
+
+      .stack {
+        gap: 0.72rem;
+      }
+
+      .primary-button,
+      .secondary-button {
+        min-height: 3rem;
+      }
+    }
+
+    @media (min-width: 700px) and (orientation: portrait) {
+      :root {
+        --wheel-size: min(74vw, 50dvh, 32rem);
+      }
+
+      .stack {
+        width: min(100%, 34rem);
+      }
+    }
+
+    @media (orientation: landscape) {
+      :root {
+        --wheel-size: min(46vw, 66dvh, 25rem);
+      }
+
+      .wheel-layout {
+        width: min(100%, 48rem);
+        grid-template-columns: minmax(12rem, 1fr) auto;
+        grid-template-rows: 1fr auto;
+        column-gap: clamp(1rem, 4vw, 2.5rem);
+      }
+
+      .wheel-header {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: end;
+      }
+
+      .wheel-wrap {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+
+      .wheel-actions {
+        grid-column: 1;
+        grid-row: 2;
+        align-self: start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <div class="floaters" aria-hidden="true">
+      <span class="floater" style="--x: 8%; --scale: .75; --drift: 2rem; --duration: 17s; --delay: -10s;"></span>
+      <span class="floater" style="--x: 22%; --scale: .58; --drift: -1.3rem; --duration: 22s; --delay: -4s;"></span>
+      <span class="floater" style="--x: 39%; --scale: .86; --drift: 1.1rem; --duration: 19s; --delay: -15s;"></span>
+      <span class="floater" style="--x: 54%; --scale: .55; --drift: -2rem; --duration: 25s; --delay: -8s;"></span>
+      <span class="floater" style="--x: 72%; --scale: .82; --drift: 1.6rem; --duration: 20s; --delay: -12s;"></span>
+      <span class="floater" style="--x: 89%; --scale: .64; --drift: -1rem; --duration: 24s; --delay: -18s;"></span>
+      <span class="floater symbol" style="--x: 15%; --scale: .9; --drift: 1rem; --duration: 18s; --delay: -6s;">$</span>
+      <span class="floater gold-spark" style="--x: 82%; --scale: .74; --drift: -1.4rem; --duration: 23s; --delay: -16s;"></span>
+      <span class="floater symbol" style="--x: 47%; --scale: .58; --drift: 1.8rem; --duration: 28s; --delay: -21s;">$</span>
+      <span class="floater gold-spark" style="--x: 31%; --scale: .62; --drift: -1rem; --duration: 26s; --delay: -13s;"></span>
+      <span class="floater gold-spark" style="--x: 6%; --scale: .52; --drift: 1.2rem; --duration: 29s; --delay: -25s;"></span>
+      <span class="floater gold-spark" style="--x: 58%; --scale: .8; --drift: -1.8rem; --duration: 21s; --delay: -7s;"></span>
+      <span class="floater gold-spark" style="--x: 94%; --scale: .5; --drift: -1rem; --duration: 31s; --delay: -20s;"></span>
+      <span class="floater symbol" style="--x: 68%; --scale: .52; --drift: 1.3rem; --duration: 27s; --delay: -19s;">$</span>
+      <span class="floater symbol" style="--x: 37%; --scale: .45; --drift: -1.5rem; --duration: 32s; --delay: -28s;">$</span>
+    </div>
+
+    <!-- LANDING SCREEN -->
+    <section class="screen landing is-active" data-screen="landing" aria-labelledby="landing-title">
+      <div class="stack">
+        <p class="eyebrow">Zwei Glückstoken</p>
+        <h1 class="title" id="landing-title">Geburtstags<br>Lotterie</h1>
+        <p class="subtitle">Zwei Drehungen. Zwei geheime Gewinne.</p>
+
+        <!-- TOKEN -->
+        <div class="token-bank" aria-label="Zwei Glückstoken verfügbar">
+          <div class="token is-active" aria-label="Erster Glückstoken">
+            <div class="token-mark">
+              <strong>1</strong>
+              <span>Dreh</span>
+            </div>
+          </div>
+          <div class="token is-reserve" aria-label="Zweiter Glückstoken">
+            <div class="token-mark">
+              <strong>2</strong>
+              <span>Dreh</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="landing-actions">
+          <button class="primary-button" type="button" id="useTokenButton">Token einlösen</button>
+          <button class="ghost-button" type="button" id="noButton">Nein danke</button>
+        </div>
+
+        <div class="no-panel" aria-live="polite">
+          <p class="copy">Verständlich. Aber du wirst es vermutlich bereuen.</p>
+          <button class="secondary-button" type="button" id="fineButton">Na gut, spielen wir</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen token-screen" data-screen="tokens" aria-labelledby="tokens-title">
+      <div class="stack">
+        <p class="eyebrow">Noch ein Token</p>
+        <h2 class="activation-title" id="tokens-title">Runde zwei<br>ist bereit.</h2>
+        <p class="subtitle">Ein Gewinn ist schon da. Der zweite wartet noch.</p>
+        <div class="token-bank" aria-label="Ein Token benutzt, ein Token verfügbar">
+          <div class="token is-spent" aria-label="Erster Token benutzt">
+            <div class="token-mark">
+              <strong>✓</strong>
+              <span>Benutzt</span>
+            </div>
+          </div>
+          <button class="token token-button" type="button" id="secondTokenButton" aria-label="Zweiten Glückstoken einsetzen">
+            <span class="token-mark">
+              <strong>2</strong>
+              <span>Dreh</span>
+            </span>
+          </button>
+        </div>
+        <button class="primary-button" type="button" id="useSecondTokenButton">Zweiten Token einsetzen</button>
+      </div>
+    </section>
+
+    <section class="screen activation" data-screen="activation" aria-labelledby="activation-title">
+      <div class="stack">
+        <div class="slot" aria-hidden="true">
+          <div class="slot-token"></div>
+        </div>
+        <h2 class="activation-title" id="activation-title">Rien ne<br>va plus!</h2>
+      </div>
+    </section>
+
+    <!-- WHEEL -->
+    <section class="screen wheel-screen" data-screen="wheel" aria-labelledby="wheel-title">
+      <div class="wheel-layout">
+        <header class="wheel-header">
+          <p class="eyebrow">Glücksrad</p>
+          <h2 class="wheel-title" id="wheel-title">Dein Token ist aktiv</h2>
+          <p class="wheel-status" id="wheelStatus">Ein Dreh. Kein Druck.</p>
+        </header>
+
+        <div class="wheel-wrap" aria-label="Geburtstags-Glücksrad">
+          <div class="pointer" aria-hidden="true">
+            <svg viewBox="0 0 56 72" role="img">
+              <path d="M28 69 7 19C2 7 12 1 28 1s26 6 21 18L28 69Z" fill="#f3cf83"/>
+              <path d="M28 60 13 20c-3-8 4-12 15-12s18 4 15 12L28 60Z" fill="rgba(255,255,255,.28)"/>
+            </svg>
+          </div>
+          <div class="wheel-frame"></div>
+          <div class="speed-lines" aria-hidden="true"></div>
+          <div class="wheel-rotor" id="wheelRotor">
+            <svg class="wheel-svg" id="wheelSvg" viewBox="0 0 100 100" aria-hidden="true">
+              <defs>
+                <filter id="winnerGlow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="1.7" result="blur"/>
+                  <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.95 0 1 0 0 0.73 0 0 1 0 0.25 0 0 0 1 0"/>
+                  <feMerge>
+                    <feMergeNode/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+            </svg>
+          </div>
+          <div class="hub" aria-hidden="true"></div>
+        </div>
+
+        <div class="wheel-actions">
+          <button class="primary-button" type="button" id="spinButton">Glücksrad drehen</button>
+          <p class="one-token-note" id="tokenNote">Nach dem Aufdecken ist dieser Token verbraucht.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVEAL ANIMATION -->
+    <section class="screen reveal-screen" data-screen="reveal" aria-labelledby="reveal-title">
+      <div class="stack">
+        <div class="mystery-card" aria-label="Geheimnisvolle Gewinnkarte">
+          <div class="card-face card-front">?</div>
+          <div class="card-face card-back">
+            <div>
+              <span class="optic" id="revealIcon">🔭</span>
+              <strong id="revealPrize">Du gewinnst<br>ein Fernglas</strong>
+            </div>
+          </div>
+        </div>
+        <div class="reveal-copy">
+          <h2 id="reveal-title">Alles Gute!</h2>
+          <p id="revealText">Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL SCREEN -->
+    <section class="screen final-screen" data-screen="final" aria-labelledby="final-title">
+      <div class="stack">
+        <div class="prize-symbol" id="finalIcon" aria-hidden="true">🔭</div>
+        <p class="eyebrow">Dein Geschenk</p>
+        <h2 class="final-title" id="final-title">Ein Fernglas<br>deiner Wahl.</h2>
+        <div class="gift-box">
+          <p id="finalText">Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.</p>
+        </div>
+        <p class="small-love">Alles Gute zum Geburtstag ♥</p>
+        <button class="secondary-button" type="button" id="nextTokenButton">Zweiten Token einsetzen</button>
+      </div>
+    </section>
+
+    <section class="screen used-screen" data-screen="used" aria-labelledby="used-title">
+      <div class="stack">
+        <span class="used-badge">Token bereits benutzt</span>
+        <h2 class="final-title" id="used-title">Gewinn<br>abgeholt.</h2>
+        <p class="copy">Sieht so aus, als hättest du deinen Gewinn schon abgeholt.</p>
+        <button class="secondary-button" type="button" id="showPrizeButton">Gewinn anzeigen</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* ANIMATION TIMING */
+    const timing = {
+      tokenActivation: 2500,
+      spinDuration: 6800,
+      settlePause: 950,
+      congratulationsPause: 1200,
+      youWonPause: 1200,
+      glowPause: 1100,
+      cardFlipDelay: 520,
+      finalRevealDelay: 2550
+    };
+
+    const config = {
+      segmentAngle: 60,
+      minSpinTurns: 6,
+      maxSpinTurns: 8
+    };
+
+    const rounds = [
+      {
+        segments: [
+          { icon: "🍺", label: "100 Bier", color: "#8f5b24" },
+          { icon: "😐", label: "Leider nichts", color: "#4c5667" },
+          { icon: "?", label: "???", color: "#171820", mystery: true },
+          { icon: "🪁", label: "Neuer Kite", color: "#2f6f85" },
+          { icon: "🎿", label: "Neues Paar Ski", color: "#735692" },
+          { icon: "?", label: "???", color: "#161b2a", mystery: true }
+        ],
+        icon: "🔭",
+        revealPrize: "Du gewinnst<br>ein Fernglas",
+        revealTitle: "Alles Gute!",
+        revealText: "Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.",
+        finalTitle: "Ein Fernglas<br>deiner Wahl.",
+        finalText: "Mama schenkt dir ein Fernglas nach deiner persönlichen Auswahl, weil du am besten weisst, was zu dir passt. Du entscheidest, sie regelt den Rest.",
+        tokenNote: "Nach dem Aufdecken ist dieser Token verbraucht."
+      },
+      {
+        segments: [
+          { icon: "🍷", label: "10 Weine", color: "#854143" },
+          { icon: "?", label: "???", color: "#171820", mystery: true },
+          { icon: "🚴", label: "Ein neues Rennrad", color: "#2f6f85" },
+          { icon: "?", label: "???", color: "#24202d", mystery: true },
+          { icon: "🥾", label: "Wanderschuhe", color: "#735692" },
+          { icon: "?", label: "???", color: "#161b2a", mystery: true }
+        ],
+        icon: "🍽️",
+        revealPrize: "Du gewinnst<br>Omas<br>Hirschpfeffer",
+        revealTitle: "Omas<br>Hirschpfeffer.",
+        revealText: "Deine Jungs würden dir gerne einen Hirschpfeffer nach Omas Art zubereiten, mit anschliessendem Männerabend.",
+        finalTitle: "Omas<br>Hirschpfeffer.",
+        finalText: "Deine Jungs würden dir gerne einen Hirschpfeffer nach Omas Art zubereiten, mit anschliessendem Männerabend.",
+        tokenNote: "Nach dem Aufdecken ist auch dein zweiter Token verbraucht."
+      }
+    ];
+
+    const app = document.querySelector("#app");
+    const screens = [...document.querySelectorAll("[data-screen]")];
+    const landing = document.querySelector(".landing");
+    const wheelScreen = document.querySelector(".wheel-screen");
+    const revealScreen = document.querySelector(".reveal-screen");
+    const wheelSvg = document.querySelector("#wheelSvg");
+    const wheelRotor = document.querySelector("#wheelRotor");
+    const wheelStatus = document.querySelector("#wheelStatus");
+    const useTokenButton = document.querySelector("#useTokenButton");
+    const noButton = document.querySelector("#noButton");
+    const fineButton = document.querySelector("#fineButton");
+    const spinButton = document.querySelector("#spinButton");
+    const secondTokenButton = document.querySelector("#secondTokenButton");
+    const useSecondTokenButton = document.querySelector("#useSecondTokenButton");
+    const nextTokenButton = document.querySelector("#nextTokenButton");
+    const showPrizeButton = document.querySelector("#showPrizeButton");
+    const revealIcon = document.querySelector("#revealIcon");
+    const revealPrize = document.querySelector("#revealPrize");
+    const revealTitle = document.querySelector("#reveal-title");
+    const revealText = document.querySelector("#revealText");
+    const finalIcon = document.querySelector("#finalIcon");
+    const finalTitle = document.querySelector("#final-title");
+    const finalText = document.querySelector("#finalText");
+    const tokenNote = document.querySelector("#tokenNote");
+
+    let currentRotation = 0;
+    let selectedMysteryIndex = null;
+    let isSpinning = false;
+    let timeouts = [];
+    let currentRound = 0;
+    const completedRounds = new Set();
+
+    document.documentElement.style.setProperty("--spin-duration", `${timing.spinDuration}ms`);
+
+    function clearTimers() {
+      timeouts.forEach((id) => window.clearTimeout(id));
+      timeouts = [];
+    }
+
+    function wait(ms, action) {
+      const id = window.setTimeout(action, ms);
+      timeouts.push(id);
+      return id;
+    }
+
+    function showScreen(name) {
+      screens.forEach((screen) => {
+        screen.classList.toggle("is-active", screen.dataset.screen === name);
+      });
+    }
+
+    function getRound() {
+      return rounds[currentRound];
+    }
+
+    function polarToCartesian(cx, cy, r, angleDeg) {
+      const angle = (angleDeg - 90) * Math.PI / 180;
+      return {
+        x: cx + r * Math.cos(angle),
+        y: cy + r * Math.sin(angle)
+      };
+    }
+
+    function describeArcSlice(startAngle, endAngle) {
+      const outerStart = polarToCartesian(50, 50, 48, startAngle);
+      const outerEnd = polarToCartesian(50, 50, 48, endAngle);
+      const innerEnd = polarToCartesian(50, 50, 13, endAngle);
+      const innerStart = polarToCartesian(50, 50, 13, startAngle);
+      const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+      return [
+        `M ${outerStart.x.toFixed(3)} ${outerStart.y.toFixed(3)}`,
+        `A 48 48 0 ${largeArc} 1 ${outerEnd.x.toFixed(3)} ${outerEnd.y.toFixed(3)}`,
+        `L ${innerEnd.x.toFixed(3)} ${innerEnd.y.toFixed(3)}`,
+        `A 13 13 0 ${largeArc} 0 ${innerStart.x.toFixed(3)} ${innerStart.y.toFixed(3)}`,
+        "Z"
+      ].join(" ");
+    }
+
+    function makeSvgElement(name, attributes = {}) {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+      return element;
+    }
+
+    function createWheel() {
+      const segments = getRound().segments;
+      const fragment = document.createDocumentFragment();
+      const segmentGroup = makeSvgElement("g", { class: "segments" });
+      const labelGroup = makeSvgElement("g", { class: "labels" });
+
+      segments.forEach((segment, index) => {
+        const start = index * config.segmentAngle;
+        const end = start + config.segmentAngle;
+        const mid = start + config.segmentAngle / 2;
+        const labelPoint = polarToCartesian(50, 50, 31, mid);
+        const labelLines = getWheelLabelLines(segment);
+
+        const path = makeSvgElement("path", {
+          class: "segment",
+          "data-index": index,
+          d: describeArcSlice(start, end),
+          fill: segment.color
+        });
+        segmentGroup.appendChild(path);
+
+        const text = makeSvgElement("text", {
+          class: "wheel-label",
+          x: labelPoint.x.toFixed(2),
+          y: labelPoint.y.toFixed(2),
+          transform: `rotate(${mid} ${labelPoint.x.toFixed(2)} ${labelPoint.y.toFixed(2)})`
+        });
+
+        const icon = makeSvgElement("tspan", {
+          class: "icon",
+          x: labelPoint.x.toFixed(2),
+          dy: segment.mystery ? "-1.4" : "-4.4"
+        });
+        icon.textContent = segment.icon;
+
+        text.append(icon);
+        labelLines.forEach((line, lineIndex) => {
+          const word = makeSvgElement("tspan", {
+            class: "word",
+            x: labelPoint.x.toFixed(2),
+            dy: lineIndex === 0 ? "5.3" : "4.35"
+          });
+          word.textContent = line;
+          text.append(word);
+        });
+        labelGroup.appendChild(text);
+      });
+
+      fragment.append(segmentGroup, labelGroup);
+      wheelSvg.appendChild(fragment);
+    }
+
+    function getWheelLabelLines(segment) {
+      if (segment.mystery) {
+        return [];
+      }
+
+      const compactLabels = {
+        "Neues Paar Ski": ["Neues Paar", "Ski"],
+        "Ein neues Rennrad": ["Ein neues", "Rennrad"],
+        Wanderschuhe: ["Wander", "schuhe"]
+      };
+
+      return compactLabels[segment.label] ?? segment.label.split(" ");
+    }
+
+    function configureRound(roundIndex) {
+      currentRound = roundIndex;
+      const round = getRound();
+
+      config.segmentAngle = 360 / round.segments.length;
+      currentRotation = 0;
+      selectedMysteryIndex = null;
+      isSpinning = false;
+      wheelRotor.style.transition = "none";
+      wheelRotor.style.transform = "rotate(0deg)";
+      wheelSvg.querySelectorAll(".segments, .labels").forEach((group) => group.remove());
+      revealScreen.classList.remove("is-flipped", "show-copy");
+      wheelScreen.classList.remove("is-spinning");
+      spinButton.disabled = false;
+      setStatus("Ein Dreh. Kein Druck.");
+
+      revealIcon.textContent = round.icon;
+      revealPrize.innerHTML = round.revealPrize;
+      revealTitle.textContent = round.revealTitle;
+      revealText.textContent = round.revealText;
+      finalIcon.textContent = round.icon;
+      finalTitle.innerHTML = round.finalTitle;
+      finalText.textContent = round.finalText;
+      tokenNote.textContent = round.tokenNote;
+      nextTokenButton.textContent = roundIndex === 0 ? "Zweiten Token einsetzen" : "Nochmal ansehen";
+      nextTokenButton.classList.toggle("primary-button", roundIndex === 0);
+      nextTokenButton.classList.toggle("secondary-button", roundIndex !== 0);
+      createWheel();
+    }
+
+    function setStatus(message, hot = false) {
+      wheelStatus.textContent = message;
+      wheelStatus.classList.toggle("is-hot", hot);
+    }
+
+    function startTokenFlow(roundIndex = currentRound) {
+      if (completedRounds.has(roundIndex)) {
+        return;
+      }
+
+      configureRound(roundIndex);
+      clearTimers();
+      document.activeElement?.blur?.();
+      landing.classList.remove("is-nope");
+      const activeTokenScreen = roundIndex === 0 ? landing : document.querySelector(".token-screen");
+      activeTokenScreen.classList.add("is-token-active");
+      const activeButton = roundIndex === 0 ? useTokenButton : useSecondTokenButton;
+      activeButton.disabled = true;
+
+      wait(900, () => showScreen("activation"));
+      wait(timing.tokenActivation, () => {
+        activeTokenScreen.classList.remove("is-token-active");
+        activeButton.disabled = false;
+        showScreen("wheel");
+      });
+    }
+
+    /* WINNING POSITION */
+    function chooseMysterySegment() {
+      const mysteryIndices = getRound().segments
+        .map((segment, index) => segment.mystery ? index : null)
+        .filter((index) => index !== null);
+      return mysteryIndices[Math.floor(Math.random() * mysteryIndices.length)];
+    }
+
+    function computeWinningRotation(index) {
+      const turns = config.minSpinTurns + Math.floor(Math.random() * (config.maxSpinTurns - config.minSpinTurns + 1));
+      const safeJitter = Math.random() * 14 - 7;
+      const targetAngle = (index + 0.5) * config.segmentAngle + safeJitter;
+      return currentRotation + turns * 360 + (360 - targetAngle);
+    }
+
+    function markWinningSegment(index) {
+      document.querySelectorAll(".segment").forEach((segment) => {
+        segment.classList.toggle("is-winner", Number(segment.dataset.index) === index);
+      });
+    }
+
+    /* SPIN LOGIC */
+    function spinWheel() {
+      if (isSpinning || completedRounds.has(currentRound)) {
+        return;
+      }
+
+      isSpinning = true;
+      selectedMysteryIndex = chooseMysterySegment();
+      const winningRotation = computeWinningRotation(selectedMysteryIndex);
+
+      spinButton.disabled = true;
+      wheelScreen.classList.add("is-spinning");
+      setStatus("Dreht...", true);
+      markWinningSegment(-1);
+
+      wheelRotor.style.transition = `transform ${timing.spinDuration}ms cubic-bezier(0.08, 0.78, 0.12, 1)`;
+      wheelRotor.style.transform = `rotate(${winningRotation}deg)`;
+      currentRotation = winningRotation;
+
+      wait(timing.spinDuration, () => settleWheel(winningRotation));
+    }
+
+    function settleWheel(rotation) {
+      wheelScreen.classList.remove("is-spinning");
+      wheelRotor.style.transition = "transform 180ms cubic-bezier(0.3, 1.45, 0.45, 1)";
+      wheelRotor.style.transform = `rotate(${rotation + 4}deg)`;
+
+      wait(180, () => {
+        wheelRotor.style.transition = "transform 220ms cubic-bezier(0.28, 0.9, 0.2, 1)";
+        wheelRotor.style.transform = `rotate(${rotation - 1.2}deg)`;
+      });
+
+      wait(410, () => {
+        wheelRotor.style.transition = "transform 260ms var(--ease-out)";
+        wheelRotor.style.transform = `rotate(${rotation}deg)`;
+        markWinningSegment(selectedMysteryIndex);
+        setStatus("...", false);
+      });
+
+      wait(410 + timing.settlePause, () => setStatus("Herzlichen Glückwunsch", true));
+      wait(410 + timing.settlePause + timing.congratulationsPause, () => setStatus("Du hast gewonnen...", true));
+      wait(410 + timing.settlePause + timing.congratulationsPause + timing.youWonPause, () => {
+        setStatus("Geheimer Gewinn freigeschaltet", true);
+      });
+      wait(410 + timing.settlePause + timing.congratulationsPause + timing.youWonPause + timing.glowPause, showMysteryReveal);
+    }
+
+    function showMysteryReveal() {
+      showScreen("reveal");
+      wait(timing.cardFlipDelay, () => revealScreen.classList.add("is-flipped"));
+      wait(timing.finalRevealDelay, () => {
+        revealScreen.classList.add("show-copy");
+        completedRounds.add(currentRound);
+      });
+      wait(timing.finalRevealDelay + 2300, () => showScreen("final"));
+    }
+
+    function showFinalFromUsedToken() {
+      showScreen("final");
+    }
+
+    function handleFinalAction() {
+      if (currentRound === 0) {
+        showScreen("tokens");
+        return;
+      }
+
+      window.location.reload();
+    }
+
+    function boot() {
+      configureRound(0);
+
+      useTokenButton.addEventListener("click", () => startTokenFlow(0));
+      fineButton.addEventListener("click", () => startTokenFlow(0));
+      noButton.addEventListener("click", () => landing.classList.add("is-nope"));
+      spinButton.addEventListener("click", spinWheel);
+      showPrizeButton.addEventListener("click", showFinalFromUsedToken);
+      secondTokenButton.addEventListener("click", () => startTokenFlow(1));
+      useSecondTokenButton.addEventListener("click", () => startTokenFlow(1));
+      nextTokenButton.addEventListener("click", handleFinalAction);
+    }
+
+    boot();
+  </script>
+</body>
+</html>
